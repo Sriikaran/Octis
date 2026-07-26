@@ -1,0 +1,28 @@
+# Phase 6: Frontend Integration Checklist
+
+- [x] 1. Initialize API Client
+  - [x] Create `src/services/api.ts`
+  - [x] Add abort timeout logic (15s)
+  - [x] Add dev-only request logging
+  - [x] Add generic error handling
+- [x] 2. Environment Variables
+  - [x] Create `.env.local` with `NEXT_PUBLIC_API_URL`
+- [x] 3. Master Data Service
+  - [x] Create `src/services/masterDataService.ts`
+  - [x] Implement in-memory cache
+  - [x] Map backend `Worker`, `Item`, `Purity` schemas
+- [x] 4. CRUD Services
+  - [x] Update `goldDistributionService.ts`
+  - [x] Update `jewelleryCollectionService.ts` (handle `checkDuplicateTag` properly)
+- [x] 5. Page Updates (Master Data Loading)
+  - [x] Update `src/app/gold-distribution/page.tsx`
+  - [x] Update `src/app/jewellery-collection/page.tsx`
+  - [x] Update reports pages
+  - [x] Use `Promise.all` for parallel requests
+- [x] 6. Dashboard & Reports
+  - [x] Ensure Dashboard components fetch via services seamlessly
+  - [x] Ensure Reports use live services
+- [ ] 7. Verification & Cleanup
+  - [ ] Verify `healthCheck` and `getVersion`
+  - [ ] Verify frontend duplicate tag warnings
+  - [ ] Remove `src/lib/mockData.ts` (ONLY after user verifies integration)

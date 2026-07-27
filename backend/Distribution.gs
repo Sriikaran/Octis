@@ -1,3 +1,6 @@
+// Spreadsheet columns (9 total, no UUID column):
+// 1:RecordID  2:Date  3:WorkerName  4:SubWorker  5:Quantity  6:Purity  7:TotalPure  8:CreatedAt  9:UpdatedAt
+
 function getDistribution() {
   const data = getSheetDataAsObjects("GoldDistribution");
   return successResponse("Gold Distribution records fetched", data);
@@ -7,144 +10,127 @@ function createDistribution(data) {
   requireFields(data, ["date", "worker", "quantity", "purity"]);
 
   const sheet = getSheet("GoldDistribution");
-  
-  const id = generateUUID();
+
   const recordId = generateRecordId("GoldDistribution", "GD");
   const createdAt = currentTimestamp();
-  
+
   const quantity = parseNumeric(data.quantity);
-  const purity = parseNumeric(data.purity);
+  const purity   = parseNumeric(data.purity);
   const totalPure = (quantity * purity) / 100;
-  
+
+  // Must match spreadsheet column order exactly
   const rowData = [
-    id,
-    recordId,
-    createdAt,
-    createdAt,
-    data.date,
-    data.worker,
-    data.subWorker || "",
-    quantity,
-    purity,
-    totalPure
+    recordId,             // col 1: RecordID
+    data.date,            // col 2: Date
+    data.worker,          // col 3: WorkerName
+    data.subWorker || "", // col 4: SubWorker
+    quantity,             // col 5: Quantity
+    purity,               // col 6: Purity
+    totalPure,            // col 7: TotalPure
+    createdAt,            // col 8: CreatedAt
+    createdAt             // col 9: UpdatedAt
   ];
 
   sheet.appendRow(rowData);
-  
+
   addWorkerIfMissing(data.worker);
   addPurityIfMissing(data.purity);
 
-  const record = {
-    id: id,
-    recordId: recordId,
+  return successResponse("Gold Distribution created successfully.", {
+    id:        recordId,
+    recordId:  recordId,
     createdAt: createdAt,
     updatedAt: createdAt,
-    date: data.date,
-    worker: data.worker,
+    date:      data.date,
+    worker:    data.worker,
     subWorker: data.subWorker || "",
-    quantity: quantity,
-    purity: purity,
+    quantity:  quantity,
+    purity:    purity,
     totalPure: totalPure
-  };
-
-  return successResponse("Gold Distribution created successfully.", record);
+  });
 }
 
 function updateDistribution(data) {
   if (!data.id && !data.recordId) {
-    return errorResponse("Record identifier required", "Provide 'id' (UUID) or 'recordId'");
+    return errorResponse("Record identifier required", "Provide 'id' or 'recordId'");
   }
   requireFields(data, ["date", "worker", "quantity", "purity"]);
 
   const sheet = getSheet("GoldDistribution");
-  
-  // Try UUID (col 1) first, then RecordID (col 2) for legacy rows
-  let row = -1;
-  if (data.id) {
-    row = findRowByInternalId("GoldDistribution", data.id, 1);
-  }
-  if (row === -1 && data.recordId) {
-    row = findRowByInternalId("GoldDistribution", data.recordId, 2);
-  }
-  
+
+  // RecordID is col 1 — search there
+  const lookupId = data.id || data.recordId;
+  const row = findRowByInternalId("GoldDistribution", lookupId, 1);
+
   if (row === -1) {
     return errorResponse("Record not found");
   }
 
-  const existingId = sheet.getRange(row, 1).getValue();
-  const existingCreatedAt = sheet.getRange(row, 3).getValue();
-  
+  const existingRecordId  = sheet.getRange(row, 1).getValue();
+  const existingCreatedAt = sheet.getRange(row, 8).getValue(); // col 8 = CreatedAt
+
   const updatedAt = currentTimestamp();
-  const quantity = parseNumeric(data.quantity);
-  const purity = parseNumeric(data.purity);
+  const quantity  = parseNumeric(data.quantity);
+  const purity    = parseNumeric(data.purity);
   const totalPure = (quantity * purity) / 100;
-  
+
   const rowData = [
-    existingId,
-    data.recordId,
-    existingCreatedAt instanceof Date ? existingCreatedAt.toISOString() : existingCreatedAt,
-    updatedAt,
-    data.date,
-    data.worker,
-    data.subWorker || "",
-    quantity,
-    purity,
-    totalPure
+    existingRecordId,                                                              // col 1: RecordID
+    data.date,                                                                     // col 2: Date
+    data.worker,                                                                   // col 3: WorkerName
+    data.subWorker || "",                                                          // col 4: SubWorker
+    quantity,                                                                      // col 5: Quantity
+    purity,                                                                        // col 6: Purity
+    totalPure,                                                                     // col 7: TotalPure
+    existingCreatedAt instanceof Date ? existingCreatedAt.toISOString() : existingCreatedAt, // col 8: CreatedAt
+    updatedAt                                                                      // col 9: UpdatedAt
   ];
-  
-  sheet.getRange(row, 1, 1, 10).setValues([rowData]);
-  
+
+  sheet.getRange(row, 1, 1, 9).setValues([rowData]);
+
   addWorkerIfMissing(data.worker);
   addPurityIfMissing(data.purity);
 
-  const record = {
-    id: existingId,
-    recordId: data.recordId,
-    createdAt: rowData[2],
+  return successResponse("Gold Distribution updated successfully.", {
+    id:        existingRecordId,
+    recordId:  existingRecordId,
+    createdAt: rowData[7],
     updatedAt: updatedAt,
-    date: data.date,
-    worker: data.worker,
+    date:      data.date,
+    worker:    data.worker,
     subWorker: data.subWorker || "",
-    quantity: quantity,
-    purity: purity,
+    quantity:  quantity,
+    purity:    purity,
     totalPure: totalPure
-  };
-
-  return successResponse("Gold Distribution updated successfully.", record);
+  });
 }
 
 function deleteDistribution(data) {
   if (!data.id && !data.recordId) {
-    return errorResponse("Record identifier required", "Provide 'id' (UUID) or 'recordId'");
+    return errorResponse("Record identifier required", "Provide 'id' or 'recordId'");
   }
 
   const sheet = getSheet("GoldDistribution");
-  
-  // Try UUID (col 1) first, then RecordID (col 2) for legacy rows
-  let row = -1;
-  if (data.id) {
-    row = findRowByInternalId("GoldDistribution", data.id, 1);
-  }
-  if (row === -1 && data.recordId) {
-    row = findRowByInternalId("GoldDistribution", data.recordId, 2);
-  }
-  
+
+  const lookupId = data.id || data.recordId;
+  const row = findRowByInternalId("GoldDistribution", lookupId, 1);
+
   if (row === -1) {
     return errorResponse("Record not found");
   }
-  
-  const values = sheet.getRange(row, 1, 1, 10).getValues()[0];
+
+  const values = sheet.getRange(row, 1, 1, 9).getValues()[0];
   const record = {
-    id: values[0],
-    recordId: values[1],
-    createdAt: values[2] instanceof Date ? values[2].toISOString() : values[2],
-    updatedAt: values[3] instanceof Date ? values[3].toISOString() : values[3],
-    date: values[4] instanceof Date ? values[4].toISOString() : values[4],
-    worker: values[5],
-    subWorker: values[6],
-    quantity: values[7],
-    purity: values[8],
-    totalPure: values[9]
+    id:        values[0],
+    recordId:  values[0],
+    date:      values[1] instanceof Date ? values[1].toISOString() : values[1],
+    worker:    values[2],
+    subWorker: values[3],
+    quantity:  values[4],
+    purity:    values[5],
+    totalPure: values[6],
+    createdAt: values[7] instanceof Date ? values[7].toISOString() : values[7],
+    updatedAt: values[8] instanceof Date ? values[8].toISOString() : values[8]
   };
 
   sheet.deleteRow(row);

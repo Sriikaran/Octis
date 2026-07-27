@@ -4,18 +4,29 @@ import { api } from './api';
 export const goldDistributionService = {
   async getAll(): Promise<GoldDistributionRecord[]> {
     const data = await api.get<any[]>('getDistribution');
-    return data.map((item: any) => ({
-      id: item.ID || item.id,
-      recordId: item.RecordID || item.recordId,
-      date: item.Date || item.date,
-      worker: item.WorkerName || item.worker,
-      subWorker: item.SubWorker || item.subWorker || "",
-      quantity: Number(item.Quantity || item.quantity) || 0,
-      purity: Number(item.Purity || item.purity) || 0,
-      totalPure: Number(item.TotalPure || item.totalPure) || 0,
-      createdAt: item.CreatedAt || item.createdAt,
-      updatedAt: item.UpdatedAt || item.updatedAt
-    }));
+    return data.map((item: any) => {
+      const quantity = Number(item.Quantity || item.quantity) || 0;
+      const purity = Number(item.Purity || item.purity) || 0;
+      const backendTotalPure = item.TotalPure ?? item['Total Pure'] ?? item.totalPure;
+      // Spreadsheet TotalPure may be blank string — calculate locally as fallback
+      const totalPure = (backendTotalPure !== '' && backendTotalPure !== null && backendTotalPure !== undefined)
+        ? Number(backendTotalPure)
+        : (quantity * purity) / 100;
+      // Spreadsheet may not have an ID column — use RecordID as the unique key
+      const recordId = item.RecordID || item['Record ID'] || item.recordId || '';
+      return {
+        id: item.ID || item.id || recordId,  // fall back to recordId if no UUID column
+        recordId,
+        date: item.Date || item.date || '',
+        worker: item.WorkerName || item['Worker Name'] || item.Worker || item.worker || '',
+        subWorker: item.SubWorker || item['Sub Worker'] || item.subWorker || '',
+        quantity,
+        purity,
+        totalPure,
+        createdAt: item.CreatedAt || item['Created At'] || item.createdAt || '',
+        updatedAt: item.UpdatedAt || item['Updated At'] || item.updatedAt || ''
+      };
+    });
   },
 
   async create(record: Omit<GoldDistributionRecord, 'id' | 'recordId' | 'createdAt' | 'updatedAt' | 'totalPure'>): Promise<GoldDistributionRecord> {

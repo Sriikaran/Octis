@@ -4,22 +4,36 @@ import { api } from './api';
 export const jewelleryCollectionService = {
   async getAll(): Promise<JewelleryCollectionRecord[]> {
     const data = await api.get<any[]>('getCollection');
-    return data.map((item: any) => ({
-      id: item.ID || item.id,
-      recordId: item.RecordID || item.recordId,
-      date: item.Date || item.date,
-      worker: item.WorkerName || item.worker,
-      item: item.Item || item.item,
-      manualTag: item.ManualTag || item.manualTag || "",
-      grossWeight: Number(item.GrossWeight || item.grossWeight) || 0,
-      stoneWeight: Number(item.StoneWeight || item.stoneWeight) || 0,
-      netWeight: Number(item.NetWeight || item.netWeight) || 0,
-      purity: Number(item.Purity || item.purity) || 0,
-      tagWeight: Number(item.TagWeight || item.tagWeight) || 0,
-      totalPure: Number(item.TotalPure || item.totalPure) || 0,
-      createdAt: item.CreatedAt || item.createdAt,
-      updatedAt: item.UpdatedAt || item.updatedAt
-    }));
+    return data.map((item: any) => {
+      const grossWeight = Number(item.GrossWeight ?? item['Gross Weight'] ?? item.grossWeight) || 0;
+      const stoneWeight = Number(item.StoneWeight ?? item['Stone Weight'] ?? item.stoneWeight) || 0;
+      const purity = Number(item.Purity || item.purity) || 0;
+      const backendNetWeight = item.NetWeight ?? item['Net Weight'] ?? item.netWeight;
+      const backendTotalPure = item.TotalPure ?? item['Total Pure'] ?? item.totalPure;
+      const netWeight = (backendNetWeight !== '' && backendNetWeight !== null && backendNetWeight !== undefined)
+        ? Number(backendNetWeight)
+        : grossWeight - stoneWeight;
+      const totalPure = (backendTotalPure !== '' && backendTotalPure !== null && backendTotalPure !== undefined)
+        ? Number(backendTotalPure)
+        : (netWeight * purity) / 100;
+      const recordId = item.RecordID || item['Record ID'] || item.recordId || '';
+      return {
+        id: item.ID || item.id || recordId,
+        recordId,
+        date: item.Date || item.date || '',
+        worker: item.WorkerName || item['Worker Name'] || item.Worker || item.worker || '',
+        item: item.Item || item.item || '',
+        manualTag: item.ManualTag || item['Manual Tag'] || item.manualTag || '',
+        grossWeight,
+        stoneWeight,
+        netWeight,
+        purity,
+        tagWeight: Number(item.TagWeight ?? item['Tag Weight'] ?? item.tagWeight) || 0,
+        totalPure,
+        createdAt: item.CreatedAt || item['Created At'] || item.createdAt || '',
+        updatedAt: item.UpdatedAt || item['Updated At'] || item.updatedAt || ''
+      };
+    });
   },
 
   async create(record: Omit<JewelleryCollectionRecord, 'id' | 'recordId' | 'createdAt' | 'updatedAt' | 'netWeight' | 'totalPure'>): Promise<JewelleryCollectionRecord> {

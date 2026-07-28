@@ -30,7 +30,7 @@ function generateUUID() {
   return Utilities.getUuid();
 }
 
-function generateRecordId(sheetName, prefix, recordIdColIndex = 2) {
+function generateRecordId(sheetName, prefix, recordIdColIndex = 1) {
   const sheet = getSheet(sheetName);
   const lastRow = sheet.getLastRow();
   

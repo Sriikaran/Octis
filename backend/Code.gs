@@ -59,6 +59,21 @@ function doPost(e) {
       case "deleteCollection":
         return deleteCollection(data);
 
+      case "createWorker":
+        return createWorker(data);
+      case "deleteWorker":
+        return deleteWorker(data);
+
+      case "createItem":
+        return createItem(data);
+      case "deleteItem":
+        return deleteItem(data);
+
+      case "createPurity":
+        return createPurity(data);
+      case "deletePurity":
+        return deletePurity(data);
+
       default:
         return errorResponse("Invalid Action", "The requested action does not exist.");
     }

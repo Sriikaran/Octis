@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -11,6 +11,7 @@ import { GoldDistributionTable } from '@/components/gold-distribution/GoldDistri
 import { goldDistributionService } from '@/services/goldDistributionService';
 import { GoldDistributionRecord } from '@/types';
 import { masterDataService } from '@/services/masterDataService';
+import { Option } from '@/components/shared/CreatableDropdown';
 
 export default function GoldDistributionPage() {
   const [records, setRecords] = useState<GoldDistributionRecord[]>([]);
@@ -21,20 +22,28 @@ export default function GoldDistributionPage() {
   const [deletingRecord, setDeletingRecord] = useState<GoldDistributionRecord | null>(null);
 
   // Dynamic Options state
-  const [workerOptions, setWorkerOptions] = useState<{label: string, value: string}[]>([]);
-  const [purityOptions, setPurityOptions] = useState<{label: string, value: string}[]>([]);
+  const [workerOptions, setWorkerOptions] = useState<Option[]>([]);
+  const [purityOptions, setPurityOptions] = useState<Option[]>([]);
+
+  const loadMasterData = useCallback(async (forceRefresh = false) => {
+    try {
+      const [workers, purities] = await Promise.all([
+        masterDataService.getWorkers(forceRefresh),
+        masterDataService.getPurities(forceRefresh),
+      ]);
+
+      setWorkerOptions(workers.map((w) => ({ label: w.name, value: w.name })));
+      setPurityOptions(purities.map((p) => ({ label: p.label, value: p.value.toString() })));
+    } catch (error: unknown) {
+      console.error('Failed to load master data', error);
+    }
+  }, []);
 
   useEffect(() => {
     const initializeData = async () => {
       try {
-        const [workers, purities, recordsData] = await Promise.all([
-          masterDataService.getWorkers(),
-          masterDataService.getPurities(),
-          goldDistributionService.getAll()
-        ]);
-        
-        setWorkerOptions(workers.map(w => ({ label: w.name, value: w.name })));
-        setPurityOptions(purities.map(p => ({ label: p.label, value: p.value.toString() })));
+        await loadMasterData();
+        const recordsData = await goldDistributionService.getAll();
         setRecords(recordsData);
       } catch (error: unknown) {
         toast.error(error instanceof Error ? error.message : 'Failed to load initial data');
@@ -44,20 +53,50 @@ export default function GoldDistributionPage() {
     };
 
     initializeData();
-  }, []);
 
+    // Subscribe to global master data cache updates
+    const unsubscribe = masterDataService.subscribe(() => {
+      loadMasterData();
+    });
 
+    return () => {
+      unsubscribe();
+    };
+  }, [loadMasterData]);
 
-  const handleAddWorker = (name: string) => {
-    if (!workerOptions.some(w => w.value.toLowerCase() === name.toLowerCase())) {
-      setWorkerOptions(prev => [...prev, { label: name, value: name }]);
+  const handleAddWorker = async (name: string) => {
+    try {
+      await masterDataService.createWorker(name);
+      toast.success(`✓ Worker "${name}" created.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create worker');
     }
   };
 
-  const handleAddPurity = (valStr: string) => {
-    const val = parseFloat(valStr);
-    if (!isNaN(val) && !purityOptions.some(p => p.value === val.toString())) {
-      setPurityOptions(prev => [...prev, { label: val.toFixed(3), value: val.toString() }]);
+  const handleDeleteWorker = async (option: Option) => {
+    try {
+      await masterDataService.deleteWorker(option.value);
+      toast.success(`✓ Worker "${option.label}" deleted.`);
+    } catch (error: any) {
+      toast.error(error.message || `Cannot delete worker "${option.label}"`);
+    }
+  };
+
+  const handleAddPurity = async (valStr: string) => {
+    try {
+      await masterDataService.createPurity(valStr);
+      toast.success(`✓ Purity ${valStr}% created.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create purity');
+    }
+  };
+
+  const handleDeletePurity = async (option: Option) => {
+    try {
+      await masterDataService.deletePurity(option.value);
+      toast.success(`✓ Purity "${option.label}" deleted.`);
+    } catch (error: any) {
+      toast.error(error.message || `Cannot delete purity "${option.label}"`);
     }
   };
 
@@ -68,7 +107,7 @@ export default function GoldDistributionPage() {
         const updated = await goldDistributionService.update(editingRecord.id, data, editingRecord);
         setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
         toast.success('Record updated successfully.');
-        setEditingRecord(null); // Switch back to create mode
+        setEditingRecord(null);
       } else {
         const created = await goldDistributionService.create(data);
         setRecords(prev => [created, ...prev]);
@@ -111,7 +150,9 @@ export default function GoldDistributionPage() {
             workerOptions={workerOptions}
             purityOptions={purityOptions}
             onAddWorker={handleAddWorker}
+            onDeleteWorker={handleDeleteWorker}
             onAddPurity={handleAddPurity}
+            onDeletePurity={handleDeletePurity}
           />
         </div>
 

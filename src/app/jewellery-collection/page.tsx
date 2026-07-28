@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { JewelleryCollectionRecord } from '@/types';
 import { jewelleryCollectionService } from '@/services/jewelleryCollectionService';
 import { JewelleryCollectionForm } from '@/components/jewellery-collection/JewelleryCollectionForm';
 import { JewelleryCollectionTable } from '@/components/jewellery-collection/JewelleryCollectionTable';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { masterDataService } from '@/services/masterDataService';
+import { Option } from '@/components/shared/CreatableDropdown';
 import { toast } from 'sonner';
 
 export default function JewelleryCollectionPage() {
@@ -16,23 +17,31 @@ export default function JewelleryCollectionPage() {
   const [editingRecord, setEditingRecord] = useState<JewelleryCollectionRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<JewelleryCollectionRecord | null>(null);
 
-  const [workerOptions, setWorkerOptions] = useState<{label: string, value: string}[]>([]);
-  const [itemOptions, setItemOptions] = useState<{label: string, value: string}[]>([]);
-  const [purityOptions, setPurityOptions] = useState<{label: string, value: string}[]>([]);
+  const [workerOptions, setWorkerOptions] = useState<Option[]>([]);
+  const [itemOptions, setItemOptions] = useState<Option[]>([]);
+  const [purityOptions, setPurityOptions] = useState<Option[]>([]);
+
+  const loadMasterData = useCallback(async (forceRefresh = false) => {
+    try {
+      const [workers, items, purities] = await Promise.all([
+        masterDataService.getWorkers(forceRefresh),
+        masterDataService.getItems(forceRefresh),
+        masterDataService.getPurities(forceRefresh),
+      ]);
+
+      setWorkerOptions(workers.map((w) => ({ label: w.name, value: w.name })));
+      setItemOptions(items.map((i) => ({ label: i.name, value: i.name })));
+      setPurityOptions(purities.map((p) => ({ label: p.label, value: p.value.toString() })));
+    } catch (error: unknown) {
+      console.error('Failed to load master data', error);
+    }
+  }, []);
 
   useEffect(() => {
     const initializeData = async () => {
       try {
-        const [workers, items, purities, recordsData] = await Promise.all([
-          masterDataService.getWorkers(),
-          masterDataService.getItems(),
-          masterDataService.getPurities(),
-          jewelleryCollectionService.getAll()
-        ]);
-        
-        setWorkerOptions(workers.map(w => ({ label: w.name, value: w.name })));
-        setItemOptions(items.map(i => ({ label: i.name, value: i.name })));
-        setPurityOptions(purities.map(p => ({ label: p.label, value: p.value.toString() })));
+        await loadMasterData();
+        const recordsData = await jewelleryCollectionService.getAll();
         setRecords(recordsData);
       } catch (error: unknown) {
         toast.error(error instanceof Error ? error.message : 'Failed to load initial data');
@@ -42,26 +51,68 @@ export default function JewelleryCollectionPage() {
     };
 
     initializeData();
-  }, []);
 
+    // Subscribe to global master data cache updates
+    const unsubscribe = masterDataService.subscribe(() => {
+      loadMasterData();
+    });
 
+    return () => {
+      unsubscribe();
+    };
+  }, [loadMasterData]);
 
-  const handleAddWorker = (name: string) => {
-    if (!workerOptions.some(w => w.value.toLowerCase() === name.toLowerCase())) {
-      setWorkerOptions(prev => [...prev, { label: name, value: name }]);
+  const handleAddWorker = async (name: string) => {
+    try {
+      await masterDataService.createWorker(name);
+      toast.success(`✓ Worker "${name}" created.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create worker');
     }
   };
 
-  const handleAddItem = (name: string) => {
-    if (!itemOptions.some(i => i.value.toLowerCase() === name.toLowerCase())) {
-      setItemOptions(prev => [...prev, { label: name, value: name }]);
+  const handleDeleteWorker = async (option: Option) => {
+    try {
+      await masterDataService.deleteWorker(option.value);
+      toast.success(`✓ Worker "${option.label}" deleted.`);
+    } catch (error: any) {
+      toast.error(error.message || `Cannot delete worker "${option.label}"`);
     }
   };
 
-  const handleAddPurity = (valStr: string) => {
-    const val = parseFloat(valStr);
-    if (!isNaN(val) && !purityOptions.some(p => p.value === val.toString())) {
-      setPurityOptions(prev => [...prev, { label: val.toFixed(3), value: val.toString() }]);
+  const handleAddItem = async (name: string) => {
+    try {
+      await masterDataService.createItem(name);
+      toast.success(`✓ Item "${name}" created.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create item');
+    }
+  };
+
+  const handleDeleteItem = async (option: Option) => {
+    try {
+      await masterDataService.deleteItem(option.value);
+      toast.success(`✓ Item "${option.label}" deleted.`);
+    } catch (error: any) {
+      toast.error(error.message || `Cannot delete item "${option.label}"`);
+    }
+  };
+
+  const handleAddPurity = async (valStr: string) => {
+    try {
+      await masterDataService.createPurity(valStr);
+      toast.success(`✓ Purity ${valStr}% created.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create purity');
+    }
+  };
+
+  const handleDeletePurity = async (option: Option) => {
+    try {
+      await masterDataService.deletePurity(option.value);
+      toast.success(`✓ Purity "${option.label}" deleted.`);
+    } catch (error: any) {
+      toast.error(error.message || `Cannot delete purity "${option.label}"`);
     }
   };
 
@@ -114,8 +165,11 @@ export default function JewelleryCollectionPage() {
             itemOptions={itemOptions}
             purityOptions={purityOptions}
             onAddWorker={handleAddWorker}
+            onDeleteWorker={handleDeleteWorker}
             onAddItem={handleAddItem}
+            onDeleteItem={handleDeleteItem}
             onAddPurity={handleAddPurity}
+            onDeletePurity={handleDeletePurity}
             isSubmitting={isSubmitting}
           />
         </div>

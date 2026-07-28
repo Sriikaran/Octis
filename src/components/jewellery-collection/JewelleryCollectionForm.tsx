@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/shared/NumberInput';
-import { CreatableDropdown } from '@/components/shared/CreatableDropdown';
+import { CreatableDropdown, Option } from '@/components/shared/CreatableDropdown';
 import { SaveButton } from '@/components/shared/SaveButton';
 import { FormSection } from '@/components/shared/FormSection';
 import { calculateTotalPure, calculateNetWeight, formatDecimal } from '@/utils';
@@ -32,12 +32,15 @@ type FormData = z.infer<typeof formSchema>;
 interface JewelleryCollectionFormProps {
   initialData?: JewelleryCollectionRecord | null;
   onSubmit: (data: Omit<JewelleryCollectionRecord, 'id' | 'recordId' | 'createdAt' | 'updatedAt' | 'netWeight' | 'totalPure'>) => Promise<void>;
-  workerOptions: { label: string; value: string }[];
-  itemOptions: { label: string; value: string }[];
-  purityOptions: { label: string; value: string }[];
-  onAddWorker: (name: string) => void;
-  onAddItem: (name: string) => void;
-  onAddPurity: (val: string) => void;
+  workerOptions: Option[];
+  itemOptions: Option[];
+  purityOptions: Option[];
+  onAddWorker: (name: string) => Promise<void> | void;
+  onDeleteWorker: (option: Option) => Promise<void> | void;
+  onAddItem: (name: string) => Promise<void> | void;
+  onDeleteItem: (option: Option) => Promise<void> | void;
+  onAddPurity: (val: string) => Promise<void> | void;
+  onDeletePurity: (option: Option) => Promise<void> | void;
   isSubmitting?: boolean;
 }
 
@@ -48,8 +51,11 @@ export function JewelleryCollectionForm({
   itemOptions,
   purityOptions,
   onAddWorker,
+  onDeleteWorker,
   onAddItem,
+  onDeleteItem,
   onAddPurity,
+  onDeletePurity,
   isSubmitting,
 }: JewelleryCollectionFormProps) {
   const {
@@ -88,7 +94,6 @@ export function JewelleryCollectionForm({
         tagWeight: initialData.tagWeight,
         purity: initialData.purity,
       });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsDuplicateTag(false);
     } else {
       reset({
@@ -126,7 +131,7 @@ export function JewelleryCollectionForm({
     };
     const timer = setTimeout(() => {
       checkTag();
-    }, 500); // debounce
+    }, 500);
     return () => clearTimeout(timer);
   }, [manualTag, initialData]);
 
@@ -176,10 +181,12 @@ export function JewelleryCollectionForm({
               Worker *
             </label>
             <CreatableDropdown
+              type="worker"
               options={workerOptions}
               value={useWatch({ control, name: 'worker' })}
               onChange={(val) => setValue('worker', val, { shouldValidate: true })}
               onOptionCreate={onAddWorker}
+              onOptionDelete={onDeleteWorker}
               placeholder="Select worker..."
             />
             {errors.worker && <p className="text-red-500 text-xs mt-1">{errors.worker.message}</p>}
@@ -190,10 +197,12 @@ export function JewelleryCollectionForm({
               Item *
             </label>
             <CreatableDropdown
+              type="item"
               options={itemOptions}
               value={useWatch({ control, name: 'item' })}
               onChange={(val) => setValue('item', val, { shouldValidate: true })}
               onOptionCreate={onAddItem}
+              onOptionDelete={onDeleteItem}
               placeholder="Select item..."
             />
             {errors.item && <p className="text-red-500 text-xs mt-1">{errors.item.message}</p>}
@@ -276,16 +285,15 @@ export function JewelleryCollectionForm({
               Purity *
             </label>
             <CreatableDropdown
+              type="purity"
               options={purityOptions}
               value={useWatch({ control, name: 'purity' })?.toString()}
               onChange={(val) => {
                 const num = parseFloat(val);
                 if (!isNaN(num)) setValue('purity', num, { shouldValidate: true });
               }}
-              onOptionCreate={(val) => {
-                const num = parseFloat(val);
-                if (!isNaN(num)) onAddPurity(num.toFixed(3));
-              }}
+              onOptionCreate={onAddPurity}
+              onOptionDelete={onDeletePurity}
               placeholder="e.g. 91.600"
             />
             {errors.purity && <p className="text-red-500 text-xs mt-1">{errors.purity.message}</p>}

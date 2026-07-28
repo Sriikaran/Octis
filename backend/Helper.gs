@@ -65,7 +65,6 @@ function currentTimestamp() {
 function getSheet(sheetName) {
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
-    // If sheet doesn't exist, create it to prevent fatal crashes
     sheet = ss.insertSheet(sheetName);
   }
   return sheet;
@@ -121,89 +120,4 @@ function requireFields(data, fields) {
 function parseNumeric(value, fallback = 0) {
   const num = parseFloat(value);
   return isNaN(num) ? fallback : num;
-}
-
-// ==========================================
-// 6. Master Data Auto-Add Helpers
-// ==========================================
-function addWorkerIfMissing(workerName) {
-  if (!workerName || String(workerName).trim() === "") return;
-  const name = String(workerName).trim();
-  
-  const sheet = getSheet("Workers");
-  const lastRow = sheet.getLastRow();
-  
-  let exists = false;
-  if (lastRow > 1 && sheet.getLastColumn() > 0) {
-    const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-    for (let row of data) {
-      if (row.some(cell => String(cell).trim().toLowerCase() === name.toLowerCase())) {
-        exists = true;
-        break;
-      }
-    }
-  }
-
-  if (!exists) {
-    const id = generateUUID();
-    const createdAt = currentTimestamp();
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["ID", "Name", "CreatedAt"]);
-    }
-    sheet.appendRow([id, name, createdAt]);
-  }
-}
-
-function addItemIfMissing(itemName) {
-  if (!itemName || String(itemName).trim() === "") return;
-  const name = String(itemName).trim();
-  
-  const sheet = getSheet("Items");
-  const lastRow = sheet.getLastRow();
-  
-  let exists = false;
-  if (lastRow > 1 && sheet.getLastColumn() > 0) {
-    const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-    for (let row of data) {
-      if (row.some(cell => String(cell).trim().toLowerCase() === name.toLowerCase())) {
-        exists = true;
-        break;
-      }
-    }
-  }
-
-  if (!exists) {
-    const id = generateUUID();
-    const createdAt = currentTimestamp();
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["ID", "Name", "CreatedAt"]);
-    }
-    sheet.appendRow([id, name, createdAt]);
-  }
-}
-
-function addPurityIfMissing(purityValue) {
-  if (purityValue === undefined || purityValue === null || String(purityValue).trim() === "") return;
-  const purity = parseNumeric(purityValue, null);
-  if (purity === null) return;
-  
-  const sheet = getSheet("Purities");
-  const lastRow = sheet.getLastRow();
-  
-  let exists = false;
-  if (lastRow > 1 && sheet.getLastColumn() > 0) {
-    const purities = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues().flat();
-    if (purities.some(val => parseNumeric(val, null) === purity)) {
-      exists = true;
-    }
-  }
-
-  if (!exists) {
-    const id = generateUUID();
-    const createdAt = currentTimestamp();
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["ID", "Purity", "CreatedAt"]);
-    }
-    sheet.appendRow([id, purity, createdAt]);
-  }
 }

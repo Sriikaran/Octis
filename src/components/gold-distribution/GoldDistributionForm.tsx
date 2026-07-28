@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/shared/NumberInput';
-import { CreatableDropdown } from '@/components/shared/CreatableDropdown';
+import { CreatableDropdown, Option } from '@/components/shared/CreatableDropdown';
 import { SaveButton } from '@/components/shared/SaveButton';
 import { FormSection } from '@/components/shared/FormSection';
 import { calculateTotalPure, formatDecimal } from '@/utils';
@@ -27,10 +27,12 @@ type FormData = z.infer<typeof formSchema>;
 interface GoldDistributionFormProps {
   initialData?: GoldDistributionRecord | null;
   onSubmit: (data: Omit<GoldDistributionRecord, 'id' | 'recordId' | 'createdAt' | 'updatedAt' | 'totalPure'>) => Promise<void>;
-  workerOptions: { label: string; value: string }[];
-  purityOptions: { label: string; value: string }[];
-  onAddWorker: (name: string) => void;
-  onAddPurity: (val: string) => void;
+  workerOptions: Option[];
+  purityOptions: Option[];
+  onAddWorker: (name: string) => Promise<void> | void;
+  onDeleteWorker: (option: Option) => Promise<void> | void;
+  onAddPurity: (val: string) => Promise<void> | void;
+  onDeletePurity: (option: Option) => Promise<void> | void;
   isSubmitting?: boolean;
 }
 
@@ -40,7 +42,9 @@ export function GoldDistributionForm({
   workerOptions,
   purityOptions,
   onAddWorker,
+  onDeleteWorker,
   onAddPurity,
+  onDeletePurity,
   isSubmitting,
 }: GoldDistributionFormProps) {
   const {
@@ -63,7 +67,6 @@ export function GoldDistributionForm({
 
   useEffect(() => {
     if (initialData) {
-      // Set values if editing
       const dateStr = initialData.date ? format(new Date(initialData.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
       reset({
         date: dateStr,
@@ -89,13 +92,11 @@ export function GoldDistributionForm({
   const totalPure = calculateTotalPure(Number(quantity) || 0, Number(purity) || 0);
 
   const handleFormSubmit = async (data: FormData) => {
-    // Ensuring the API gets date ISO string if required, or keep it standard. We use the form string.
     await onSubmit({
       ...data,
       date: new Date(data.date).toISOString(),
     });
     if (!initialData) {
-      // Clear form except date after create
       reset({
         date: data.date,
         worker: '',
@@ -103,7 +104,6 @@ export function GoldDistributionForm({
         quantity: 0,
         purity: 0,
       });
-      // Try to focus date field
       document.getElementById('date-field')?.focus();
     }
   };
@@ -131,10 +131,12 @@ export function GoldDistributionForm({
               Worker *
             </label>
             <CreatableDropdown
+              type="worker"
               options={workerOptions}
               value={useWatch({ control, name: 'worker' })}
               onChange={(val) => setValue('worker', val, { shouldValidate: true })}
               onOptionCreate={onAddWorker}
+              onOptionDelete={onDeleteWorker}
               placeholder="Select worker..."
             />
             {errors.worker && <p className="text-red-500 text-xs mt-1">{errors.worker.message}</p>}
@@ -171,17 +173,15 @@ export function GoldDistributionForm({
               Purity *
             </label>
             <CreatableDropdown
+              type="purity"
               options={purityOptions}
               value={useWatch({ control, name: 'purity' })?.toString()}
               onChange={(val) => {
                 const num = parseFloat(val);
                 if (!isNaN(num)) setValue('purity', num, { shouldValidate: true });
               }}
-              onOptionCreate={(val) => {
-                // If it's a valid number, we add it
-                const num = parseFloat(val);
-                if (!isNaN(num)) onAddPurity(num.toFixed(3));
-              }}
+              onOptionCreate={onAddPurity}
+              onOptionDelete={onDeletePurity}
               placeholder="e.g. 91.600"
             />
             {errors.purity && <p className="text-red-500 text-xs mt-1">{errors.purity.message}</p>}

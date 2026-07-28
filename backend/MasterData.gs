@@ -1,17 +1,38 @@
 // ==========================================
+// 0. Setup and Helpers
+// ==========================================
+function ensureMasterDataHeaders(sheetName, headers) {
+  const sheet = getSheet(sheetName);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  } else {
+    const firstCell = String(sheet.getRange(1, 1).getValue()).trim();
+    // Check if the first cell is a UUID (missing headers scenario)
+    if (firstCell.length === 36 && firstCell.split('-').length === 5) {
+      sheet.insertRowBefore(1);
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
+  }
+  return sheet;
+}
+
+// ==========================================
 // 1. Get Operations
 // ==========================================
 function getWorkers() {
+  ensureMasterDataHeaders("Workers", ["ID", "WorkerName", "CreatedAt"]);
   const data = getSheetDataAsObjects("Workers");
   return successResponse("Workers fetched", data);
 }
 
 function getItems() {
+  ensureMasterDataHeaders("Items", ["ID", "Item", "CreatedAt"]);
   const data = getSheetDataAsObjects("Items");
   return successResponse("Items fetched", data);
 }
 
 function getPurities() {
+  ensureMasterDataHeaders("Purities", ["ID", "Purity", "CreatedAt"]);
   const data = getSheetDataAsObjects("Purities");
   return successResponse("Purities fetched", data);
 }
@@ -109,7 +130,7 @@ function createWorker(data) {
   requireFields(data, ["name"]);
   const name = String(data.name).trim();
 
-  const sheet = getSheet("Workers");
+  const sheet = ensureMasterDataHeaders("Workers", ["ID", "WorkerName", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
 
   if (lastRow > 1 && sheet.getLastColumn() > 0) {
@@ -132,7 +153,7 @@ function createItem(data) {
   requireFields(data, ["name"]);
   const name = String(data.name).trim();
 
-  const sheet = getSheet("Items");
+  const sheet = ensureMasterDataHeaders("Items", ["ID", "Item", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
 
   if (lastRow > 1 && sheet.getLastColumn() > 0) {
@@ -156,7 +177,7 @@ function createPurity(data) {
   const purity = parseNumeric(data.purity, null);
   if (purity === null) return errorResponse("Invalid purity value");
 
-  const sheet = getSheet("Purities");
+  const sheet = ensureMasterDataHeaders("Purities", ["ID", "Purity", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
 
   if (lastRow > 1 && sheet.getLastColumn() > 0) {
@@ -192,7 +213,7 @@ function deleteWorker(data) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  const sheet = getSheet("Workers");
+  const sheet = ensureMasterDataHeaders("Workers", ["ID", "WorkerName", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return errorResponse("Worker not found");
 
@@ -229,7 +250,7 @@ function deleteItem(data) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  const sheet = getSheet("Items");
+  const sheet = ensureMasterDataHeaders("Items", ["ID", "Item", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return errorResponse("Item not found");
 
@@ -267,7 +288,7 @@ function deletePurity(data) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  const sheet = getSheet("Purities");
+  const sheet = ensureMasterDataHeaders("Purities", ["ID", "Purity", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return errorResponse("Purity not found");
 

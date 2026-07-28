@@ -1,5 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-const TIMEOUT_MS = 20000; // 20s — Apps Script can be slow on first cold start
+const TIMEOUT_MS = 30000; // 30s — Apps Script can be slow on first cold start
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -48,14 +48,18 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise
 export const api = {
   async get<T>(action: string): Promise<T> {
     if (!API_URL) throw new Error('Backend unavailable (API URL not configured).');
-    const url = `${API_URL}?action=${action}`;
+    
+    // Add timestamp to prevent browser/Next.js from caching the GET request
+    const timestamp = Date.now();
+    const url = `${API_URL}?action=${action}&t=${timestamp}`;
 
     if (process.env.NODE_ENV === 'development') {
       console.log('[API] GET', url);
     }
 
     try {
-      const response = await fetchWithTimeout(url);
+      // Force no-store cache
+      const response = await fetchWithTimeout(url, { cache: 'no-store' });
 
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -97,6 +101,7 @@ export const api = {
       // Apps Script still processes the body via e.postData.contents.
       const response = await fetchWithTimeout(API_URL, {
         method: 'POST',
+        cache: 'no-store',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },

@@ -1,7 +1,7 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Edit2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { GoldDistributionRecord } from '@/types';
 import { DataTable } from '@/components/shared/DataTable';
 import { formatDate, formatDecimal } from '@/utils';
@@ -47,27 +47,25 @@ export function GoldDistributionTable({ data, onEdit, onDelete }: GoldDistributi
     },
     {
       id: 'actions',
-      header: 'Actions',
       cell: ({ row }) => {
         const record = row.original;
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex justify-end gap-2">
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="icon"
               onClick={() => onEdit(record)}
-              className="text-stone-700 hover:text-amber-700"
+              className="h-8 w-8 text-stone-500 hover:text-stone-900"
             >
-              <Edit2 className="h-4 w-4 mr-1" />
-              Edit
+              <Pencil className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => onDelete(record)}
-              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              className="h-8 w-8 text-red-500 hover:text-red-700"
             >
-              Delete
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         );

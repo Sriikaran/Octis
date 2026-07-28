@@ -3,13 +3,13 @@
 // ==========================================
 function ensureMasterDataHeaders(sheetName, headers) {
   const sheet = getSheet(sheetName);
-  if (sheet.getLastRow() === 0) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow === 0) {
     sheet.appendRow(headers);
   } else {
-    const firstCell = String(sheet.getRange(1, 1).getValue()).trim();
-    // Check if the first cell is a UUID (missing headers scenario)
-    if (firstCell.length === 36 && firstCell.split('-').length === 5) {
-      sheet.insertRowBefore(1);
+    // Overwrite the first row only if they don't match the required headers.
+    const currentHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    if (currentHeaders.join(",") !== headers.join(",")) {
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     }
   }
@@ -38,90 +38,8 @@ function getPurities() {
 }
 
 // ==========================================
-// 2. Reference Checking Engines
+// 2. Reference Checking Engines (Removed as per user request)
 // ==========================================
-function getWorkerReferenceCount(workerName) {
-  if (!workerName) return { totalCount: 0, details: {} };
-  const target = String(workerName).trim().toLowerCase();
-
-  let gdCount = 0;
-  let jcCount = 0;
-
-  // Search GoldDistribution
-  const gdSheet = ss.getSheetByName("GoldDistribution");
-  if (gdSheet && gdSheet.getLastRow() > 1) {
-    const data = gdSheet.getRange(2, 3, gdSheet.getLastRow() - 1, 1).getValues().flat(); // Col 3 = WorkerName
-    gdCount = data.filter(w => String(w).trim().toLowerCase() === target).length;
-  }
-
-  // Search JewelleryCollection
-  const jcSheet = ss.getSheetByName("JewelleryCollection");
-  if (jcSheet && jcSheet.getLastRow() > 1) {
-    const data = jcSheet.getRange(2, 3, jcSheet.getLastRow() - 1, 1).getValues().flat(); // Col 3 = WorkerName
-    jcCount = data.filter(w => String(w).trim().toLowerCase() === target).length;
-  }
-
-  const details = {};
-  if (gdCount > 0) details["Gold Distribution"] = gdCount;
-  if (jcCount > 0) details["Jewellery Collection"] = jcCount;
-
-  return {
-    totalCount: gdCount + jcCount,
-    details: details
-  };
-}
-
-function getItemReferenceCount(itemName) {
-  if (!itemName) return { totalCount: 0, details: {} };
-  const target = String(itemName).trim().toLowerCase();
-
-  let jcCount = 0;
-  const jcSheet = ss.getSheetByName("JewelleryCollection");
-  if (jcSheet && jcSheet.getLastRow() > 1) {
-    const data = jcSheet.getRange(2, 4, jcSheet.getLastRow() - 1, 1).getValues().flat(); // Col 4 = Item
-    jcCount = data.filter(i => String(i).trim().toLowerCase() === target).length;
-  }
-
-  const details = {};
-  if (jcCount > 0) details["Jewellery Collection"] = jcCount;
-
-  return {
-    totalCount: jcCount,
-    details: details
-  };
-}
-
-function getPurityReferenceCount(purityVal) {
-  if (purityVal === undefined || purityVal === null) return { totalCount: 0, details: {} };
-  const target = parseNumeric(purityVal, null);
-  if (target === null) return { totalCount: 0, details: {} };
-
-  let gdCount = 0;
-  let jcCount = 0;
-
-  // Search GoldDistribution (Col 6 = Purity)
-  const gdSheet = ss.getSheetByName("GoldDistribution");
-  if (gdSheet && gdSheet.getLastRow() > 1) {
-    const data = gdSheet.getRange(2, 6, gdSheet.getLastRow() - 1, 1).getValues().flat();
-    gdCount = data.filter(p => parseNumeric(p, null) === target).length;
-  }
-
-  // Search JewelleryCollection (Col 10 = Purity)
-  const jcSheet = ss.getSheetByName("JewelleryCollection");
-  if (jcSheet && jcSheet.getLastRow() > 1) {
-    const data = jcSheet.getRange(2, 10, jcSheet.getLastRow() - 1, 1).getValues().flat();
-    jcCount = data.filter(p => parseNumeric(p, null) === target).length;
-  }
-
-  const details = {};
-  if (gdCount > 0) details["Gold Distribution"] = gdCount;
-  if (jcCount > 0) details["Jewellery Collection"] = jcCount;
-
-  return {
-    totalCount: gdCount + jcCount,
-    details: details
-  };
-}
 
 // ==========================================
 // 3. Create Operations (with duplicate check)
@@ -133,12 +51,11 @@ function createWorker(data) {
   const sheet = ensureMasterDataHeaders("Workers", ["ID", "WorkerName", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
 
-  if (lastRow > 1 && sheet.getLastColumn() > 0) {
-    const existing = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-    for (let row of existing) {
-      if (row.some(cell => String(cell).trim().toLowerCase() === name.toLowerCase())) {
-        return errorResponse("Worker already exists: " + name);
-      }
+  if (lastRow > 1) {
+    // Only fetch Col 2 (WorkerName) to improve performance
+    const existing = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
+    if (existing.some(val => String(val).trim().toLowerCase() === name.toLowerCase())) {
+      return errorResponse("Worker already exists: " + name);
     }
   }
 
@@ -156,12 +73,11 @@ function createItem(data) {
   const sheet = ensureMasterDataHeaders("Items", ["ID", "Item", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
 
-  if (lastRow > 1 && sheet.getLastColumn() > 0) {
-    const existing = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-    for (let row of existing) {
-      if (row.some(cell => String(cell).trim().toLowerCase() === name.toLowerCase())) {
-        return errorResponse("Item already exists: " + name);
-      }
+  if (lastRow > 1) {
+    // Only fetch Col 2 (Item) to improve performance
+    const existing = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
+    if (existing.some(val => String(val).trim().toLowerCase() === name.toLowerCase())) {
+      return errorResponse("Item already exists: " + name);
     }
   }
 
@@ -180,8 +96,9 @@ function createPurity(data) {
   const sheet = ensureMasterDataHeaders("Purities", ["ID", "Purity", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
 
-  if (lastRow > 1 && sheet.getLastColumn() > 0) {
-    const existing = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues().flat();
+  if (lastRow > 1) {
+    // Only fetch Col 2 (Purity) to improve performance
+    const existing = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
     if (existing.some(val => parseNumeric(val, null) === purity)) {
       return errorResponse("Purity already exists: " + purity);
     }
@@ -201,28 +118,15 @@ function deleteWorker(data) {
   requireFields(data, ["name"]);
   const name = String(data.name).trim();
 
-  const refCheck = getWorkerReferenceCount(name);
-  if (refCheck.totalCount > 0) {
-    const breakdown = Object.entries(refCheck.details).map(([k, v]) => `• ${k} (${v})`).join(" ");
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      referenced: true,
-      totalCount: refCheck.totalCount,
-      details: refCheck.details,
-      message: `Cannot delete Worker "${name}". Used in ${breakdown}`
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-
   const sheet = ensureMasterDataHeaders("Workers", ["ID", "WorkerName", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return errorResponse("Worker not found");
 
-  const values = sheet.getRange(2, 1, lastRow - 1, Math.max(2, sheet.getLastColumn())).getValues();
+  const values = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
   let targetRow = -1;
 
   for (let i = 0; i < values.length; i++) {
-    const row = values[i];
-    if (row.some(cell => String(cell).trim().toLowerCase() === name.toLowerCase())) {
+    if (String(values[i]).trim().toLowerCase() === name.toLowerCase()) {
       targetRow = i + 2;
       break;
     }
@@ -238,28 +142,15 @@ function deleteItem(data) {
   requireFields(data, ["name"]);
   const name = String(data.name).trim();
 
-  const refCheck = getItemReferenceCount(name);
-  if (refCheck.totalCount > 0) {
-    const breakdown = Object.entries(refCheck.details).map(([k, v]) => `• ${k} (${v})`).join(" ");
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      referenced: true,
-      totalCount: refCheck.totalCount,
-      details: refCheck.details,
-      message: `Cannot delete Item "${name}". Used in ${breakdown}`
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-
   const sheet = ensureMasterDataHeaders("Items", ["ID", "Item", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return errorResponse("Item not found");
 
-  const values = sheet.getRange(2, 1, lastRow - 1, Math.max(2, sheet.getLastColumn())).getValues();
+  const values = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
   let targetRow = -1;
 
   for (let i = 0; i < values.length; i++) {
-    const row = values[i];
-    if (row.some(cell => String(cell).trim().toLowerCase() === name.toLowerCase())) {
+    if (String(values[i]).trim().toLowerCase() === name.toLowerCase()) {
       targetRow = i + 2;
       break;
     }
@@ -276,28 +167,15 @@ function deletePurity(data) {
   const purity = parseNumeric(data.purity, null);
   if (purity === null) return errorResponse("Invalid purity value");
 
-  const refCheck = getPurityReferenceCount(purity);
-  if (refCheck.totalCount > 0) {
-    const breakdown = Object.entries(refCheck.details).map(([k, v]) => `• ${k} (${v})`).join(" ");
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      referenced: true,
-      totalCount: refCheck.totalCount,
-      details: refCheck.details,
-      message: `Cannot delete Purity "${purity}%". Used in ${breakdown}`
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-
   const sheet = ensureMasterDataHeaders("Purities", ["ID", "Purity", "CreatedAt"]);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return errorResponse("Purity not found");
 
-  const values = sheet.getRange(2, 1, lastRow - 1, Math.max(2, sheet.getLastColumn())).getValues();
+  const values = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
   let targetRow = -1;
 
   for (let i = 0; i < values.length; i++) {
-    const row = values[i];
-    if (row.some(cell => parseNumeric(cell, null) === purity)) {
+    if (parseNumeric(values[i], null) === purity) {
       targetRow = i + 2;
       break;
     }

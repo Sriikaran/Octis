@@ -10,7 +10,7 @@ import { SummaryCards, SummaryMetric } from '@/components/dashboard/SummaryCards
 import { QuickStatistics } from '@/components/dashboard/QuickStatistics';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { TopWorkers } from '@/components/dashboard/TopWorkers';
-import { formatDecimal } from '@/utils';
+import { formatDecimal, parseValidDate } from '@/utils';
 import { startOfWeek, startOfMonth, startOfYear, isWithinInterval, subDays, subWeeks, subMonths, subYears, differenceInDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
@@ -115,7 +115,8 @@ export default function DashboardPage() {
   // Helper to filter records by a specific date range
   const filterByDateRange = <T extends { date: string }>(records: T[], from?: Date, to?: Date) => {
     return records.filter(record => {
-      const recordDate = new Date(record.date);
+      let recordDate = parseValidDate(record.date);
+
       recordDate.setHours(0, 0, 0, 0);
 
       if (from && to) {

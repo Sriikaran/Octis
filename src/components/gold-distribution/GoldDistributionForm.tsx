@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/shared/NumberInput';
-import { CreatableDropdown, Option } from '@/components/shared/CreatableDropdown';
+import { CreatableDropdown } from '@/components/shared/CreatableDropdown';
 import { SaveButton } from '@/components/shared/SaveButton';
 import { FormSection } from '@/components/shared/FormSection';
 import { calculateTotalPure, formatDecimal } from '@/utils';
@@ -27,13 +27,17 @@ type FormData = z.infer<typeof formSchema>;
 interface GoldDistributionFormProps {
   initialData?: GoldDistributionRecord | null;
   onSubmit: (data: Omit<GoldDistributionRecord, 'id' | 'recordId' | 'createdAt' | 'updatedAt' | 'totalPure'>) => Promise<void>;
-  workerOptions: Option[];
-  purityOptions: Option[];
-  onAddWorker: (name: string) => Promise<void> | void;
-  onDeleteWorker: (option: Option) => Promise<void> | void;
-  onAddPurity: (val: string) => Promise<void> | void;
-  onDeletePurity: (option: Option) => Promise<void> | void;
+  workerOptions: { label: string; value: string; id?: string }[];
+  purityOptions: { label: string; value: string; id?: string }[];
+  onAddWorker: (name: string) => Promise<void>;
+  onAddPurity: (val: string) => Promise<void>;
+  onDeleteWorker: (option: { label: string; value: string; id?: string }) => Promise<void>;
+  onDeletePurity: (option: { label: string; value: string; id?: string }) => Promise<void>;
   isSubmitting?: boolean;
+  isCreatingWorker?: boolean;
+  isDeletingWorker?: boolean;
+  isCreatingPurity?: boolean;
+  isDeletingPurity?: boolean;
 }
 
 export function GoldDistributionForm({
@@ -42,10 +46,14 @@ export function GoldDistributionForm({
   workerOptions,
   purityOptions,
   onAddWorker,
-  onDeleteWorker,
   onAddPurity,
+  onDeleteWorker,
   onDeletePurity,
   isSubmitting,
+  isCreatingWorker,
+  isDeletingWorker,
+  isCreatingPurity,
+  isDeletingPurity,
 }: GoldDistributionFormProps) {
   const {
     register,
@@ -67,6 +75,7 @@ export function GoldDistributionForm({
 
   useEffect(() => {
     if (initialData) {
+      // Set values if editing
       const dateStr = initialData.date ? format(new Date(initialData.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
       reset({
         date: dateStr,
@@ -92,11 +101,13 @@ export function GoldDistributionForm({
   const totalPure = calculateTotalPure(Number(quantity) || 0, Number(purity) || 0);
 
   const handleFormSubmit = async (data: FormData) => {
+    // Ensuring the API gets date ISO string if required, or keep it standard. We use the form string.
     await onSubmit({
       ...data,
       date: new Date(data.date).toISOString(),
     });
     if (!initialData) {
+      // Clear form except date after create
       reset({
         date: data.date,
         worker: '',
@@ -104,6 +115,7 @@ export function GoldDistributionForm({
         quantity: 0,
         purity: 0,
       });
+      // Try to focus date field
       document.getElementById('date-field')?.focus();
     }
   };
@@ -113,7 +125,7 @@ export function GoldDistributionForm({
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <FormSection title={initialData ? 'Edit Record' : 'New Gold Distribution'}>
           
-          <div className="sm:col-span-2">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-1">
             <label htmlFor="date-field" className="block text-sm font-medium text-stone-700 mb-1">
               Date *
             </label>
@@ -126,23 +138,24 @@ export function GoldDistributionForm({
             {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date.message}</p>}
           </div>
 
-          <div className="sm:col-span-2">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-1">
             <label className="block text-sm font-medium text-stone-700 mb-1">
               Worker *
             </label>
             <CreatableDropdown
-              type="worker"
               options={workerOptions}
               value={useWatch({ control, name: 'worker' })}
               onChange={(val) => setValue('worker', val, { shouldValidate: true })}
               onOptionCreate={onAddWorker}
               onOptionDelete={onDeleteWorker}
+              isCreating={isCreatingWorker}
+              isDeleting={isDeletingWorker}
               placeholder="Select worker..."
             />
             {errors.worker && <p className="text-red-500 text-xs mt-1">{errors.worker.message}</p>}
           </div>
 
-          <div className="sm:col-span-2">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-1">
             <label className="block text-sm font-medium text-stone-700 mb-1">
               Sub Worker
             </label>
@@ -152,7 +165,7 @@ export function GoldDistributionForm({
             />
           </div>
 
-          <div className="sm:col-span-2">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-1">
             <label className="block text-sm font-medium text-stone-700 mb-1">
               Quantity *
             </label>
@@ -168,26 +181,30 @@ export function GoldDistributionForm({
             {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
           </div>
 
-          <div className="sm:col-span-2">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-1">
             <label className="block text-sm font-medium text-stone-700 mb-1">
               Purity *
             </label>
             <CreatableDropdown
-              type="purity"
               options={purityOptions}
               value={useWatch({ control, name: 'purity' })?.toString()}
               onChange={(val) => {
                 const num = parseFloat(val);
                 if (!isNaN(num)) setValue('purity', num, { shouldValidate: true });
               }}
-              onOptionCreate={onAddPurity}
+              onOptionCreate={async (val) => {
+                const num = parseFloat(val);
+                if (!isNaN(num)) await onAddPurity(num.toString());
+              }}
               onOptionDelete={onDeletePurity}
+              isCreating={isCreatingPurity}
+              isDeleting={isDeletingPurity}
               placeholder="e.g. 91.600"
             />
             {errors.purity && <p className="text-red-500 text-xs mt-1">{errors.purity.message}</p>}
           </div>
 
-          <div className="sm:col-span-2">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-1">
             <label className="block text-sm font-medium text-stone-700 mb-1">
               Total Pure
             </label>

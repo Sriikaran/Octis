@@ -11,7 +11,6 @@ const navItems = [
   { href: ROUTES.GOLD_DISTRIBUTION, label: 'Gold Distribution', icon: Users },
   { href: ROUTES.JEWELLERY_COLLECTION, label: 'Jewellery Collection', icon: Gem },
   { href: ROUTES.REPORTS, label: 'Reports', icon: FileText },
-  { href: ROUTES.SEARCH, label: 'Search', icon: Search },
 ];
 
 export function Sidebar() {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -11,7 +11,6 @@ import { GoldDistributionTable } from '@/components/gold-distribution/GoldDistri
 import { goldDistributionService } from '@/services/goldDistributionService';
 import { GoldDistributionRecord } from '@/types';
 import { masterDataService } from '@/services/masterDataService';
-import { Option } from '@/components/shared/CreatableDropdown';
 
 export default function GoldDistributionPage() {
   const [records, setRecords] = useState<GoldDistributionRecord[]>([]);
@@ -22,28 +21,25 @@ export default function GoldDistributionPage() {
   const [deletingRecord, setDeletingRecord] = useState<GoldDistributionRecord | null>(null);
 
   // Dynamic Options state
-  const [workerOptions, setWorkerOptions] = useState<Option[]>([]);
-  const [purityOptions, setPurityOptions] = useState<Option[]>([]);
-
-  const loadMasterData = useCallback(async (forceRefresh = false) => {
-    try {
-      const [workers, purities] = await Promise.all([
-        masterDataService.getWorkers(forceRefresh),
-        masterDataService.getPurities(forceRefresh),
-      ]);
-
-      setWorkerOptions(workers.map((w) => ({ label: w.name, value: w.name })));
-      setPurityOptions(purities.map((p) => ({ label: p.label, value: p.value.toString() })));
-    } catch (error: unknown) {
-      console.error('Failed to load master data', error);
-    }
-  }, []);
+  const [workerOptions, setWorkerOptions] = useState<{label: string, value: string, id: string}[]>([]);
+  const [purityOptions, setPurityOptions] = useState<{label: string, value: string, id: string}[]>([]);
+  
+  const [isCreatingWorker, setIsCreatingWorker] = useState(false);
+  const [isDeletingWorker, setIsDeletingWorker] = useState(false);
+  const [isCreatingPurity, setIsCreatingPurity] = useState(false);
+  const [isDeletingPurity, setIsDeletingPurity] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
       try {
-        await loadMasterData();
-        const recordsData = await goldDistributionService.getAll();
+        const [workers, purities, recordsData] = await Promise.all([
+          masterDataService.getWorkers(),
+          masterDataService.getPurities(),
+          goldDistributionService.getAll()
+        ]);
+        
+        setWorkerOptions(workers.map(w => ({ label: w.name, value: w.name, id: w.id })));
+        setPurityOptions(purities.map(p => ({ label: p.label, value: p.value.toString(), id: p.id || '' })));
         setRecords(recordsData);
       } catch (error: unknown) {
         toast.error(error instanceof Error ? error.message : 'Failed to load initial data');
@@ -53,50 +49,64 @@ export default function GoldDistributionPage() {
     };
 
     initializeData();
+  }, []);
 
-    // Subscribe to global master data cache updates
-    const unsubscribe = masterDataService.subscribe(() => {
-      loadMasterData();
-    });
 
-    return () => {
-      unsubscribe();
-    };
-  }, [loadMasterData]);
 
   const handleAddWorker = async (name: string) => {
+    if (!name.trim()) return;
+    setIsCreatingWorker(true);
     try {
-      await masterDataService.createWorker(name);
-      toast.success(`✓ Worker "${name}" created.`);
+      const newWorker = await masterDataService.createWorker(name.trim());
+      setWorkerOptions(prev => [...prev, { label: newWorker.name, value: newWorker.name, id: newWorker.id }]);
+      toast.success('Worker created successfully');
     } catch (error: any) {
       toast.error(error.message || 'Failed to create worker');
+    } finally {
+      setIsCreatingWorker(false);
     }
   };
 
-  const handleDeleteWorker = async (option: Option) => {
+  const handleDeleteWorker = async (option: { label: string, value: string, id?: string }) => {
+    if (!option.id) return;
+    setIsDeletingWorker(true);
     try {
-      await masterDataService.deleteWorker(option.value);
-      toast.success(`✓ Worker "${option.label}" deleted.`);
+      await masterDataService.deleteWorker(option.id, option.label);
+      setWorkerOptions(prev => prev.filter(w => w.id !== option.id));
+      toast.success('Worker deleted successfully');
     } catch (error: any) {
-      toast.error(error.message || `Cannot delete worker "${option.label}"`);
+      toast.error(error.message || 'Failed to delete worker. It might be in use.');
+    } finally {
+      setIsDeletingWorker(false);
     }
   };
 
   const handleAddPurity = async (valStr: string) => {
+    const val = parseFloat(valStr);
+    if (isNaN(val)) return;
+    setIsCreatingPurity(true);
     try {
-      await masterDataService.createPurity(valStr);
-      toast.success(`✓ Purity ${valStr}% created.`);
+      const newPurity = await masterDataService.createPurity(val);
+      setPurityOptions(prev => [...prev, { label: newPurity.label, value: newPurity.value.toString(), id: newPurity.id || '' }]);
+      toast.success('Purity created successfully');
     } catch (error: any) {
       toast.error(error.message || 'Failed to create purity');
+    } finally {
+      setIsCreatingPurity(false);
     }
   };
 
-  const handleDeletePurity = async (option: Option) => {
+  const handleDeletePurity = async (option: { label: string, value: string, id?: string }) => {
+    if (!option.id) return;
+    setIsDeletingPurity(true);
     try {
-      await masterDataService.deletePurity(option.value);
-      toast.success(`✓ Purity "${option.label}" deleted.`);
+      await masterDataService.deletePurity(option.id, parseFloat(option.value));
+      setPurityOptions(prev => prev.filter(p => p.id !== option.id));
+      toast.success('Purity deleted successfully');
     } catch (error: any) {
-      toast.error(error.message || `Cannot delete purity "${option.label}"`);
+      toast.error(error.message || 'Failed to delete purity. It might be in use.');
+    } finally {
+      setIsDeletingPurity(false);
     }
   };
 
@@ -107,7 +117,7 @@ export default function GoldDistributionPage() {
         const updated = await goldDistributionService.update(editingRecord.id, data, editingRecord);
         setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
         toast.success('Record updated successfully.');
-        setEditingRecord(null);
+        setEditingRecord(null); // Switch back to create mode
       } else {
         const created = await goldDistributionService.create(data);
         setRecords(prev => [created, ...prev]);
@@ -140,9 +150,8 @@ export default function GoldDistributionPage() {
         description="Record and manage gold issued to workers." 
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-        {/* Left Column: Form */}
-        <div className="lg:col-span-1">
+      <div className="flex flex-col gap-6 flex-1">
+        <div>
           <GoldDistributionForm
             initialData={editingRecord}
             onSubmit={handleFormSubmit}
@@ -150,20 +159,23 @@ export default function GoldDistributionPage() {
             workerOptions={workerOptions}
             purityOptions={purityOptions}
             onAddWorker={handleAddWorker}
-            onDeleteWorker={handleDeleteWorker}
             onAddPurity={handleAddPurity}
+            onDeleteWorker={handleDeleteWorker}
             onDeletePurity={handleDeletePurity}
+            isCreatingWorker={isCreatingWorker}
+            isDeletingWorker={isDeletingWorker}
+            isCreatingPurity={isCreatingPurity}
+            isDeletingPurity={isDeletingPurity}
           />
         </div>
 
-        {/* Right Column: Table */}
-        <div className="lg:col-span-2 flex flex-col min-h-0">
+        <div className="flex flex-col min-h-0">
           {isLoading ? (
             <div className="flex justify-center items-center flex-1 text-stone-500">
               Loading records...
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col flex-1">
+            <div className="flex flex-col flex-1">
               <GoldDistributionTable 
                 data={records} 
                 onEdit={setEditingRecord} 

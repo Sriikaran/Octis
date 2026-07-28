@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { GoldDistributionRecord, JewelleryCollectionRecord } from '@/types';
 import { DataTable } from '@/components/shared/DataTable';
-import { formatDecimal, formatDate } from '@/utils';
+import { formatDecimal, formatDate, parseValidDate } from '@/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,8 @@ interface RecentActivityProps {
 
 export function RecentActivity({ goldRecords, jewelleryRecords }: RecentActivityProps) {
   const router = useRouter();
+
+
 
   const goldColumns: ColumnDef<GoldDistributionRecord>[] = React.useMemo(() => [
     {
@@ -77,7 +79,12 @@ export function RecentActivity({ goldRecords, jewelleryRecords }: RecentActivity
               }
             }}
           >
-            <DataTable columns={goldColumns} data={goldRecords} />
+            <DataTable 
+              columns={goldColumns} 
+              data={goldRecords} 
+              hideSearch={true} 
+              className="overflow-auto w-full h-full"
+            />
           </div>
         </CardContent>
       </Card>
@@ -103,7 +110,12 @@ export function RecentActivity({ goldRecords, jewelleryRecords }: RecentActivity
               }
             }}
           >
-            <DataTable columns={jewelleryColumns} data={jewelleryRecords} />
+            <DataTable 
+              columns={jewelleryColumns} 
+              data={jewelleryRecords} 
+              hideSearch={true} 
+              className="overflow-auto w-full h-full"
+            />
           </div>
         </CardContent>
       </Card>

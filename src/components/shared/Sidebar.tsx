@@ -6,7 +6,7 @@ import { LayoutDashboard, Users, Gem, FileText, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/constants';
 
-const navItems = [
+export const navItems = [
   { href: ROUTES.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
   { href: ROUTES.GOLD_DISTRIBUTION, label: 'Gold Distribution', icon: Users },
   { href: ROUTES.JEWELLERY_COLLECTION, label: 'Jewellery Collection', icon: Gem },

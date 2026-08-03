@@ -56,6 +56,7 @@ export function Header() {
             </nav>
           </SheetContent>
         </Sheet>
+        <span className="font-bold text-lg text-[#4A3219] md:hidden">JTS</span>
       </div>
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon">

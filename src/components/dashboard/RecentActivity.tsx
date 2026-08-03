@@ -59,7 +59,7 @@ export function RecentActivity({ goldRecords, jewelleryRecords }: RecentActivity
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
       <Card className="bg-white border-stone-200">
-        <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
+        <CardHeader className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0 pb-2 border-b">
           <CardTitle className="text-lg font-bold text-stone-800">
             Recent Gold Distribution
           </CardTitle>
@@ -90,7 +90,7 @@ export function RecentActivity({ goldRecords, jewelleryRecords }: RecentActivity
       </Card>
 
       <Card className="bg-white border-stone-200">
-        <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
+        <CardHeader className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0 pb-2 border-b">
           <CardTitle className="text-lg font-bold text-stone-800">
             Recent Jewellery Collection
           </CardTitle>
